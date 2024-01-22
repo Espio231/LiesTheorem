@@ -1,1 +1,1 @@
-import Bachelorproject.LieTheorem
+import BachelorProject.LieTheorem
