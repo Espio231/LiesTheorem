@@ -1,6 +1,5 @@
 import Mathlib.Algebra.Lie.Solvable
 import Mathlib.Algebra.Lie.Weights.Linear
-import Mathlib.LinearAlgebra.Dual
 
 open LieAlgebra
 
@@ -38,15 +37,27 @@ def altWeightSpace (A : LieIdeal k L) (χ : Module.Dual k L) : Submodule k V whe
 
 open FiniteDimensional
 
+theorem exists_basis_iterate (F V : Type*) [Field F] [AddCommGroup V] [Module F V] [FiniteDimensional F V]
+    (v : V) (f : V →ₗ[F] V) : ∃ (k : ℕ) (B : Basis (Fin k) F (Submodule.span F (Set.range (fun n ↦ f^[n] v)))),
+    ∀ i : Fin k, B i = f^[i] v
+    := sorry
+
+theorem altWeightSpace_lie_stable (A : LieIdeal k L) (χ : Module.Dual k L):
+  ∀ (z : L) (v : V), v ∈ altWeightSpace k L V A χ → ⁅z, v⁆ ∈ altWeightSpace k L V A χ := sorry
+
+-- theorem: ∀ n,[w, f^[n]v - λv] ∈ <f^[i] v, i < n>
 
 -- But a better result, **Lie's theorem**, is true, namely:
 -- If `L` is solvable, we can find a non-zero eigenvector
-theorem LieModule.exists_forall_lie_eq_smul (h : derivedSeries k L 1 ≠ ⊤ ∨ ⊤ = (⊥ : LieIdeal k L)) :
+theorem LieModule.exists_forall_lie_eq_smul [IsSolvable k L] :
     ∃ χ : Module.Dual k L, ∃ v : V, v ≠ 0 ∧ ∀ x : L, ⁅x, v⁆ = χ x • v := by
   sorry
 
+theorem isSolvable_of_le (R L : Type*) [CommRing R] [LieRing L] [LieAlgebra R L] {K K' : LieSubalgebra R L}
+    [IsSolvable R K'] (h : K ≤ K') : IsSolvable R K := sorry
+
 lemma LieModule.exists_forall_lie_eq_smul'' (g : LieSubalgebra k (Module.End k V)) {n : ℕ}
-  (hn : finrank k g = n) (hg : g = ⊥ ∨ derivedSeries k g 1 ≠ ⊤) :
+  (hn : finrank k g = n) [IsSolvable k g] :
   ∃ χ : Module.Dual k g, ∃ v : V, v ≠ 0 ∧ ∀ x : g, ⁅x, v⁆ = χ x • v := by
   revert g
   induction' n with n ih
@@ -59,8 +70,13 @@ lemma LieModule.exists_forall_lie_eq_smul'' (g : LieSubalgebra k (Module.End k V
       exact (Submodule.eq_bot_iff g.toSubmodule).mp (Submodule.finrank_eq_zero.mp hn) x (Submodule.coe_mem x)
     simp [xzero]
   · intro g hn hg
-    have hA : ∃ (A : LieIdeal k g), finrank k A = n := by sorry
-    rcases hA with ⟨A, hA⟩
-    have hz : ∃ (z : g), A.toSubmodule ⊔ (Submodule.span k {z}) = ⊤ := by sorry
+    have hA : ∃ (A : LieSubalgebra k (Module.End k V)), (A ≤ g) ∧ (finrank k A = n)
+    ∧ (∀ x y : Module.End k V, x ∈ A → y ∈ g → ⁅x,y⁆ ∈ A) := sorry
+    rcases hA with ⟨A, hALEg, hdimA, hAgIdeal⟩
+    have hz : ∃ (z : g), A.toSubmodule ⊔ (Submodule.span k {z.val}) = g := sorry
     rcases hz with ⟨z, hz⟩
-    let A' : LieSubalgebra k (Module.End k V) := LieSubalgebra.map (LieSubalgebra.incl g) A
+    have h₁ : _ := by
+      have : IsSolvable k A := isSolvable_of_le k (Module.End k V) hALEg
+      apply ih A hdimA
+    rcases h₁ with ⟨χ, v, hv, hweight⟩
+    sorry
