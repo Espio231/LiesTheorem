@@ -172,7 +172,9 @@ theorem T_map_U (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) : ∀ x ∈ U v 
 example (H K: Submodule k V) (f : Module.End k V) (h : Submodule.map f H ≤ K ) : ∀ x ∈ H, f x ∈ K :=
   λ x hx => h ⟨x, hx, rfl⟩
 
-theorem T_something {x : V} (hx :)
+theorem T_something (N: ℕ) {x : V} (hN : x ∈ (preU_map v (π k V z)) N) : (T χ w ^ N) x = 0 := by
+
+  sorry
 
 theorem T_res_nilpotent (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
   IsNilpotent ((T χ w).restrict (T_map_U A χ z w hw hv)) := by
@@ -184,14 +186,18 @@ theorem T_res_nilpotent (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
   rw [LinearMap.pow_restrict]
   rw [Subtype.ext_iff, LinearMap.restrict_apply]
   simp
+  exact T_something χ z w N hN
 
 
+example (H : Submodule k V) (f : Module.End k H) (h : H = ⊥) : f = 0 := by
+  ext ⟨x, hx⟩
+  rw [h] at hx
+  simp at hx
+  subst hx
+  simp only [LinearMap.zero_apply, ZeroMemClass.coe_zero, ZeroMemClass.coe_eq_zero]
+  exact f.map_zero
 
-  sorry
 
-#check LinearMap.restrict_pow
-
-example (H : Submodule k V) (f : Module.End k H) (h : H = ⊥) : f = 0 := by sorry
 
 
 theorem trace_T_res_zero (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
