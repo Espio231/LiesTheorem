@@ -8,18 +8,18 @@ open LieAlgebra
 
 
 -- let k be a field of characteristic zero
-variable {k : Type*} [Field k] [CharZero k]
+variable {k : Type*} [Field k] [CharZero k] [IsAlgClosed k]
 -- Let L be a Lie algebra over k
 variable {L : Type*} [LieRing L] [LieAlgebra k L]
 -- and let V be a finite-dimensional triangularizable k-representation of L
 variable {V : Type*} [AddCommGroup V] [Module k V] [FiniteDimensional k V]
-  [LieRingModule L V] [LieModule k L V] [LieModule.IsTriangularizable k L V] [Nontrivial V]
+  [LieRingModule L V] [LieModule k L V] [Nontrivial V]
 
 -- If `L` is nilpotent, we can find a non-zero eigenvector
 theorem LieModule.exists_forall_lie_eq_smul' [LieAlgebra.IsNilpotent k L] :
     ∃ χ : Module.Dual k L, ∃ v : V, v ≠ 0 ∧ ∀ x : L, ⁅x, v⁆ = χ x • v := by
-  suffices ∃ χ : L → k, weightSpace V χ ≠ ⊥ by
-    obtain ⟨χ, hχ⟩ := this
+  suffices h : ∃ χ : L → k, weightSpace V χ ≠ ⊥ by
+    obtain ⟨χ, hχ⟩ := h
     let χ' : weight k L V := ⟨χ, (finite_weightSpace_ne_bot k L V).mem_toFinset.mpr hχ⟩
     use weight.toLinear k L V χ'
     exact exists_forall_lie_eq_smul_of_weightSpace_ne_bot k L V χ hχ
@@ -44,6 +44,7 @@ theorem preU_zero_eq_bot : preU v f 0 = ⊥ := by
 
 theorem preU_mono {a b : ℕ} (h : a ≤ b) : preU v f a ≤ preU v f b :=
   Submodule.span_mono (fun _ ⟨c, hc, hw⟩ ↦ ⟨c, lt_of_lt_of_le hc h, hw⟩)
+
 theorem map_preU_le (n : ℕ) : Submodule.map f (preU v f n) ≤ preU v f (n + 1) := by
   rw [Submodule.map_span]
   apply Submodule.span_mono
@@ -79,7 +80,17 @@ theorem U_eq_preU : ∃ N : ℕ, U v f = preU v f N := by
   exact (U_sup_preU v f).symm
   exact IsNoetherian.noetherian (U v f)
 
---theorem exists_basis_iterate : ∃ (k : ℕ) (B : Basis (Fin k) F (U v f)), ∀ i : Fin k, B i = (f^i.val) v := sorry
+theorem map_U_le_U: Submodule.map f (U v f) ≤ U v f := by
+  rcases U_eq_preU v f with ⟨N, hN⟩
+  nth_rewrite 1 [hN]
+  apply le_trans' (preU_le_U v f (N + 1))
+  exact map_preU_le v f N
+
+theorem exists_hyperplane {n : ℕ} (hV : finrank F V = n + 1) (W : Submodule F V) (hW : finrank F V ≤ n):
+  ∃ W' : Submodule F V, ∃ z : V, W ≤ W' ∧ W' ⊔ Submodule.span F {z} = ⊤ := by
+
+  sorry
+
 
 end
 
@@ -141,6 +152,27 @@ theorem lemma3 (z : L) {v : V} (hv : v ∈ altWeightSpace A χ) (n : ℕ) :
       exact ih w hw
       trivial
 
+example (K M : Submodule k V) (g : V →ₗ[k] V) (h : Submodule.map g K ≤ M) : ∀ x ∈ K, g x ∈ M :=
+  fun _ hx ↦ h (Submodule.mem_map_of_mem hx)
+
+
+theorem U_A_stable (z w : L) (hw : w ∈ A) {v : V} (hv : v ∈ altWeightSpace A χ) :
+  ∀ x ∈ (U v (π k V z)), (π k V w) x ∈ (U v (π k V z)):= by
+  suffices h : Submodule.map (π k V w) (U v (π k V z)) ≤ (U v (π k V z)) by
+    exact fun _ hx ↦ h (Submodule.mem_map_of_mem hx)
+  rcases U_eq_preU v (π k V z) with ⟨N, hN⟩
+  nth_rewrite 1 [hN]
+  rw [Submodule.map_span, Submodule.span_le]
+  intro x ⟨y, ⟨n, hn, hy⟩, hx⟩
+  rw [← hx, hy, ← sub_add_cancel ((π k V w) ((π k V z ^ n) v)) (χ w • (((π k V z)^n) v))]
+  apply Submodule.add_mem
+  · apply preU_le_U v _ n
+    apply lemma3 A χ z hv n w hw
+  · apply preU_le_U v _ N
+    apply Submodule.smul_mem
+    apply Submodule.subset_span
+    use n, hn
+
 
 abbrev T (w : L) : Module.End k V := (π k V w)  - χ w • 1
 
@@ -156,7 +188,8 @@ theorem T_apply_succ  (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) (n : ℕ) 
   apply preU_mono v (π k V z) ((Nat.le_of_lt_succ ha))
   exact lemma3 A χ z hv a w hw
 
-theorem T_map_U (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) : ∀ x ∈ U v (π k V z), (T χ w) x ∈ U v (π k V z) := by
+theorem T_map_U (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
+  ∀ x ∈ U v (π k V z), (T χ w) x ∈ U v (π k V z) := by
   intro x hx
   rcases U_eq_preU v (π k V z) with ⟨N, hN⟩
   apply preU_le_U _ _ N
@@ -172,9 +205,16 @@ theorem T_map_U (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) : ∀ x ∈ U v 
 example (H K: Submodule k V) (f : Module.End k V) (h : Submodule.map f H ≤ K ) : ∀ x ∈ H, f x ∈ K :=
   λ x hx => h ⟨x, hx, rfl⟩
 
-theorem T_something (N: ℕ) {x : V} (hN : x ∈ (preU_map v (π k V z)) N) : (T χ w ^ N) x = 0 := by
-
-  sorry
+theorem T_something (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) (N: ℕ) :
+  ∀ x ∈ (preU_map v (π k V z)) N, (T χ w ^ N) x = 0 := by
+  induction' N with N ih
+  · simp only [preU_map, Nat.zero_eq, OrderHom.coe_mk, preU_zero_eq_bot, Submodule.mem_bot,
+    pow_zero, LinearMap.one_apply, imp_self, forall_const]
+  · intro x hx
+    rw [pow_succ', LinearMap.mul_apply]
+    apply ih
+    apply T_apply_succ A χ z w hw hv N
+    use x, hx
 
 theorem T_res_nilpotent (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
   IsNilpotent ((T χ w).restrict (T_map_U A χ z w hw hv)) := by
@@ -184,10 +224,8 @@ theorem T_res_nilpotent (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
   rcases hx with ⟨N, hN⟩
   use N
   rw [LinearMap.pow_restrict]
-  rw [Subtype.ext_iff, LinearMap.restrict_apply]
-  simp
-  exact T_something χ z w N hN
-
+  rw [Subtype.ext_iff, LinearMap.restrict_apply, ZeroMemClass.coe_zero]
+  exact T_something A χ z w hw hv N x hN
 
 example (H : Submodule k V) (f : Module.End k H) (h : H = ⊥) : f = 0 := by
   ext ⟨x, hx⟩
@@ -197,33 +235,102 @@ example (H : Submodule k V) (f : Module.End k H) (h : H = ⊥) : f = 0 := by
   simp only [LinearMap.zero_apply, ZeroMemClass.coe_zero, ZeroMemClass.coe_eq_zero]
   exact f.map_zero
 
-
-
-
 theorem trace_T_res_zero (hw : w ∈ A) (hv : v ∈ altWeightSpace A χ) :
   LinearMap.trace k (U v (π k V z)) ((T χ w).restrict (T_map_U A χ z w hw hv)) = 0 := by
   apply IsNilpotent.eq_zero
   exact LinearMap.isNilpotent_trace_of_isNilpotent (T_res_nilpotent A χ z w hw hv)
 
-theorem altWeightSpace_lie_stable (z : L) (hv : v ∈ altWeightSpace A χ):  ⁅z, v⁆ ∈ altWeightSpace A χ := by
-  by_cases hv' : v = 0
-  · simp [hv']
+abbrev πaz_map_U {a : L} (ha : a ∈ A) (hv : v ∈ altWeightSpace A χ) :
+  ∀ x ∈ U v (π k V z), π k V ⁅a,z⁆ x ∈ U v (π k V z):= by
+  intro x hx
+  apply U_A_stable A χ z ⁅a,z⁆ (lie_mem_left k L A a z ha) hv
+  assumption
+
+theorem trace_πaz {a : L} (ha : a ∈ A) (hv : v ∈ altWeightSpace A χ):
+  LinearMap.trace k (U v (π k V z)) ((π k V ⁅a, z⁆).restrict (πaz_map_U A χ z ha hv))
+    = χ ⁅a,z⁆ • (finrank k (U v (π k V z))) := by
+  rw [← LinearMap.trace_id, ← LinearMap.map_smul, ← sub_eq_zero]
+  rw [← LinearMap.map_sub]
+  apply trace_T_res_zero A χ z ⁅a,z⁆ (lie_mem_left k L A a z ha) hv
+
+@[simp]
+theorem foo (w : V) (f : Module.End k V) : ⁅f, w⁆ = f w := by exact rfl
+
+theorem foo2 (f g : Module.End k V) : ⁅f,g⁆ = f*g - g*f := by exact rfl
+
+set_option pp.proofs.withType false
+
+theorem trace_πaz_zero {a : L} (ha : a ∈ A) (hv : v ∈ altWeightSpace A χ):
+  LinearMap.trace k (U v (π k V z)) ((π k V ⁅a, z⁆).restrict (πaz_map_U A χ z ha hv))
+    = 0 := by
+  -- have h : (π k V a).restrict (U_A_stable A χ z a ha hv) = 0 := by
+  --   sorry
+  have hzU : ∀ x ∈ U v (π k V z), (π k V z) x ∈ U v (π k V z) :=
+    fun _ hx ↦ (map_U_le_U v (π k V z)) (Submodule.mem_map_of_mem hx)
+  have hres : (π k V ⁅a, z⁆).restrict (πaz_map_U A χ z ha hv) =
+    ⁅(π k V a).restrict (U_A_stable A χ z a ha hv),
+    (π k V z).restrict hzU⁆ := by
+    ext ⟨x, hx⟩
+    simp
+  rw [hres, foo2, map_sub, LinearMap.trace_mul_comm, sub_self]
+
+theorem chi_az_zero {a : L} (ha : a ∈ A) (hv : v ∈ altWeightSpace A χ) (hv' : v ≠ 0):
+    χ ⁅a,z⁆ = 0 := by
+  have h := trace_πaz A χ z ha hv
+  rw [trace_πaz_zero A χ z ha hv] at h
+  suffices h' : finrank k ↥(U v (π k V z)) ≠ 0 by
+    aesop
+  have hvU : v ∈ U v (π k V z) := by
+    apply Submodule.subset_span
+    use 0
+    simp only [pow_zero, LinearMap.one_apply]
+  have U_nontrivial : Nontrivial (U v (π k V z)) := ⟨⟨v,hvU⟩,0, ?_⟩
+  swap
+  simp only [ne_eq, Submodule.mk_eq_zero, hv', not_false_eq_true]
+  apply Nat.ne_of_lt'
+  apply FiniteDimensional.finrank_pos
+
+
+theorem altWeightSpace_lie_stable (hv : v ∈ altWeightSpace A χ):  ⁅z, v⁆ ∈ altWeightSpace A χ := by
+  rcases eq_or_ne v 0 with (rfl | hv')
+  · simp only [lie_zero, Submodule.zero_mem]
   · intro a ha
     have hzwv : ⁅⁅a, z⁆, v⁆ = χ ⁅a, z⁆ • v := hv ⁅a,z⁆ (lie_mem_left k L A a z ha)
     rw [leibniz_lie, hv a ha, hzwv]
-    sorry
-
--- But a better result, **Lie's theorem**, is true, namely:
--- If `L` is solvable, we can find a non-zero eigenvector
-theorem LieModule.exists_forall_lie_eq_smul [IsSolvable k L] :
-    ∃ χ : Module.Dual k L, ∃ v : V, v ≠ 0 ∧ ∀ x : L, ⁅x, v⁆ = χ x • v := by
-  sorry
+    rw [chi_az_zero A χ z ha hv hv']
+    simp only [zero_smul, lie_smul, zero_add]
+--#lint
+end
 
 theorem isSolvable_of_le (R L : Type*) [CommRing R] [LieRing L] [LieAlgebra R L] {K K' : LieSubalgebra R L}
-    [IsSolvable R K'] (h : K ≤ K') : IsSolvable R K := sorry
+    [IsSolvable R K'] (h : K ≤ K') : IsSolvable R K :=
+  Function.Injective.lieAlgebra_isSolvable (LieSubalgebra.inclusion_injective h)
 
+theorem LieModule.exists_forall_lie_eq_smul_finrank [IsSolvable k L] [FiniteDimensional k L]
+    {n : ℕ} (hdim : finrank k L = n) :
+  ∃ χ : Module.Dual k L, ∃ v : V, v ≠ 0 ∧ ∀ x : L, ⁅x, v⁆ = χ x • v := by
+  revert L
+  induction' n with n ih
+  · intro L _ _ _ _ _ _ hdim
+    use 0
+    rcases (exists_ne (0 : V)) with ⟨v, hv⟩
+    use v, hv
+    simp
+    suffices h : ∀ (x : L), x = 0 by {simp only [h, zero_lie, forall_const]}
+    rwa [← finrank_zero_iff_forall_zero (K := k)]
+  · intro L _ _ _ _ _ _ hdim
+    have hA : ∃(A : LieIdeal k L), ∃(z : L), finrank k A = n ∧
+        A.toSubmodule ⊔ (Submodule.span k {z}) = ⊤ := by sorry
+    rcases hA with ⟨A, z, hdimA, hdecomp⟩
+    have hAsolv : IsSolvable k A := Function.Injective.lieAlgebra_isSolvable (f := LieIdeal.incl A)
+      ((LieHom.ker_eq_bot _).mp (LieIdeal.ker_incl A))
+    specialize ih hdimA
+    rcases ih with ⟨χ, v, hv, hA⟩
+    have χ' : Module.Dual k L :=
+    --have πz_res : altWeightSpace A χ →ₗ⁅k⁆ altWeightSpace A χ := by sorry
+    sorry
 
-lemma LieModule.exists_forall_lie_eq_smul'' (g : LieSubalgebra k (Module.End k V)) {n : ℕ}
+theorem LieModule.exists_forall_lie_eq_smul'' (g : LieSubalgebra k (Module.End k V)) {n : ℕ}
   (hn : finrank k g = n) [IsSolvable k g] :
   ∃ χ : Module.Dual k g, ∃ v : V, v ≠ 0 ∧ ∀ x : g, ⁅x, v⁆ = χ x • v := by
   revert g
@@ -237,6 +344,11 @@ lemma LieModule.exists_forall_lie_eq_smul'' (g : LieSubalgebra k (Module.End k V
       exact (Submodule.eq_bot_iff g.toSubmodule).mp (Submodule.finrank_eq_zero.mp hn) x (Submodule.coe_mem x)
     simp [xzero]
   · intro g hn hg
+    -- have hgdecomp : ∃A : LieIdeal k g, ∃z : g, finrank k A = n ∧ A.toSubmodule ⊔ (Submodule.span k {z}) = ⊤
+    --   := sorry
+    -- rcases hgdecomp with ⟨A, z, hdimA, hgdecomp⟩
+    -- sorry
+
     have hA : ∃ (A : LieSubalgebra k (Module.End k V)), (A ≤ g) ∧ (finrank k A = n)
     ∧ (∀ x y : Module.End k V, x ∈ A → y ∈ g → ⁅x,y⁆ ∈ A) := sorry
     rcases hA with ⟨A, hALEg, hdimA, hAgIdeal⟩
@@ -246,4 +358,20 @@ lemma LieModule.exists_forall_lie_eq_smul'' (g : LieSubalgebra k (Module.End k V
       have : IsSolvable k A := isSolvable_of_le k (Module.End k V) hALEg
       apply ih A hdimA
     rcases h₁ with ⟨χ, v, hv, hweight⟩
+    have hA' := by
+      apply (LieSubalgebra.exists_nested_lieIdeal_coe_eq_iff hALEg).mpr
+      intro x y hx hy
+      rw [← neg_mem_iff (x := ⁅x,y⁆), lie_skew]
+      exact hAgIdeal y x hy hx
+    rcases hA' with ⟨A', hAA'⟩
+
+    -- let πz_res : altWeightSpace A' χ →ₗ[k] altWeightSpace A' χ := sorry
+    -- have hz_eigen : ∃ c, Module.End.HasEigenvalue (π k V z).restrict c := sorry
+
     sorry
+
+-- But a better result, **Lie's theorem**, is true, namely:
+-- If `L` is solvable, we can find a non-zero eigenvector
+theorem LieModule.exists_forall_lie_eq_smul [IsSolvable k L] :
+    ∃ χ : Module.Dual k L, ∃ v : V, v ≠ 0 ∧ ∀ x : L, ⁅x, v⁆ = χ x • v := by
+  sorry
