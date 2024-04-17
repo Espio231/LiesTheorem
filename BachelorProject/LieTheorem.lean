@@ -45,6 +45,7 @@ lemma U_mono {a b : ℕ} (h : a ≤ b) : U v f a ≤ U v f b :=
   Submodule.span_mono (fun _ ⟨c, hc, hw⟩ ↦ ⟨c, lt_of_lt_of_le hc h, hw⟩)
 
 lemma map_U_le (n : ℕ) : Submodule.map f (U v f n) ≤ U v f (n + 1) := by
+
   rw [Submodule.map_span]
   apply Submodule.span_mono
   intro w ⟨z, ⟨m, hm, hz⟩, hw⟩
@@ -71,9 +72,6 @@ lemma map_iSupU_le_iSupU: Submodule.map f (iSupU v f) ≤ iSupU v f := by
 end
 
 section
-
-
-
 variable (k V)
 -- the lie action of `L` on `V`
 abbrev π (z : L) : Module.End k V := LieModule.toEndomorphism k L V z
@@ -82,20 +80,6 @@ variable {k V}
 variable (A : LieIdeal k L) (χ : Module.Dual k A)
 
 abbrev T (w : A) : Module.End k V := (π k V w)  - χ w • 1
-
-lemma mem_U_succ_of_T_mem (z : L) (w : A) (v : V) (n : ℕ) (h : T A χ w (((π k V z) ^ n) v) ∈ U v (π k V z) n) :
-  π k V w (((π k V z)^n) v) ∈ U v (π k V z) (n + 1) := by
-  let πz : Module.End k V := π k V z
-  have t₁ : π k V w ((πz^n) v) =
-      (π k V w ((πz^n) v) - χ w • ((πz^n) v) + χ w • ((πz^n) v)) := by simp
-  rw [t₁]
-  apply Submodule.add_mem
-  · apply (U_mono v πz n.le_succ)
-    assumption
-  · apply Submodule.smul_mem
-    apply Submodule.subset_span
-    use n
-    simp
 
 -- We define a submodule of V which is L-invariant
 def altWeightSpace : Submodule k V where
@@ -111,54 +95,58 @@ def altWeightSpace : Submodule k V where
     intro _ _ hx _
     rw [lie_smul, hx, smul_comm]
 
-lemma forall_T_mem (z : L) {v : V} (hv : v ∈ altWeightSpace A χ) (n : ℕ) :
-    ∀ w : A, T A χ w (((π k V z)^n) v) ∈ U v (π k V z) n := by
-  induction' n with n ih
-  · intro w
-    simp [hv w]
-  · intro w
-    rw [pow_succ]
-    dsimp only [LinearMap.mul_apply, LieModule.toEndomorphism_apply_apply, LinearMap.sub_apply,
-      LieIdeal.coe_bracket_of_module, LinearMap.smul_apply, LinearMap.one_apply]
-    rw [leibniz_lie, ← lie_smul, add_sub_assoc]
-    apply Submodule.add_mem
-    · exact mem_U_succ_of_T_mem A χ z ⟨⁅w,z⁆, lie_mem_left k L A w.val z w.prop⟩ v n
-        (ih ⟨⁅w.val,z⁆, lie_mem_left k L A w.val z w.prop⟩)
-    · rw [← lie_sub]
-      apply map_U_le
-      use ⁅w, ((π k V z)^n) v⁆ - χ w • (((π k V z)^n) v)
-      constructor
-      exact ih w
-      trivial
-
-theorem iSupU_A_stable (z : L) (w : A) {v : V} (hv : v ∈ altWeightSpace A χ) :
-  ∀ x ∈ (iSupU v (π k V z)), (π k V w) x ∈ (iSupU v (π k V z)):= by
-  suffices h : Submodule.map (π k V w) (iSupU v (π k V z)) ≤ (iSupU v (π k V z)) by
-    exact fun _ hx ↦ h (Submodule.mem_map_of_mem hx)
-  obtain ⟨N, hN⟩ := iSupU_eq_U v (π k V z)
-  nth_rewrite 1 [hN]
-  rw [Submodule.map_span, Submodule.span_le]
-  intro x ⟨y, ⟨n, hn, hy⟩, hx⟩
-  rw [← hx, hy, ← sub_add_cancel ((π k V w) ((π k V z ^ n) v)) (χ w • (((π k V z)^n) v))]
-  apply Submodule.add_mem
-  · apply le_iSup (U _ _) n
-    apply forall_T_mem A χ z hv n w
-  · apply le_iSup (U _ _) N
-    apply Submodule.smul_mem
-    apply Submodule.subset_span
-    use n, hn
-
 variable (z : L) (w : A) {v : V}
 
 lemma T_apply_succ (hv : v ∈ altWeightSpace A χ) (n : ℕ) :
-  Submodule.map (T A χ w) (U v (π k V z) (n + 1)) ≤ U v (π k V z) n:= by
-  rw [LinearMap.map_span, T]
-  apply Submodule.span_le.mpr
-  intro x ⟨y, ⟨a, ha, hy⟩, hx⟩
-  rw [← hx, hy]
-  rw [LinearMap.sub_apply]
-  apply U_mono v (π k V z) ((Nat.le_of_lt_succ ha))
-  exact forall_T_mem A χ z hv a w
+    Submodule.map (T A χ w) (U v (π k V z) (n + 1)) ≤ U v (π k V z) n := by
+  rw [Submodule.map_span, Submodule.span_le]
+  revert w
+  induction n
+  · intro w x ⟨v', ⟨m, hm, hv'⟩, hx⟩
+    rw [Nat.lt_one_iff.mp hm, pow_zero, LinearMap.one_apply] at hv'
+    rw [hv', T, LinearMap.sub_apply, LieModule.toEndomorphism_apply_apply,
+      LieIdeal.coe_bracket_of_module, LinearMap.smul_apply,
+      LinearMap.one_apply, hv w, sub_self] at hx
+    rw [← hx] ; exact Submodule.zero_mem _
+  · next n hn =>
+    intro w x ⟨v', ⟨m, hm, hv'⟩, hx⟩
+    rcases (eq_or_lt_of_le (Nat.le_of_lt_succ hm)) with (rfl | hm')
+    · rw [← hx, hv', T, LinearMap.sub_apply]
+      rw [pow_succ, LinearMap.mul_apply]
+      rw [LieModule.toEndomorphism_apply_apply, LieModule.toEndomorphism_apply_apply,
+        LieIdeal.coe_bracket_of_module, LinearMap.smul_apply, LinearMap.one_apply,
+        SetLike.mem_coe, leibniz_lie, add_sub_assoc]
+      apply Submodule.add_mem
+      · let wz : A := ⟨⁅w, z⁆, lie_mem_left k L A w.val z w.prop⟩
+        have : ⁅⁅w.val, z⁆, (π k V z ^ n) v⁆ =
+            (T A χ wz) ((π k V z ^ n) v) + χ wz  • ((π k V z ^ n) v) := by
+          simp
+        rw [this]
+        apply Submodule.add_mem
+        · exact U_mono v _ (Nat.le_succ n)
+            (hn wz ⟨(π k V z ^ n) v, ⟨n, Nat.lt_succ_self n, rfl⟩, rfl⟩)
+        · exact Submodule.smul_mem _ _ (Submodule.subset_span ⟨n, Nat.lt_succ_self n, rfl⟩)
+      · have  : ⁅w.val, (π k V z ^ n) v⁆ =
+            (T A χ w) ((π k V z ^ n) v) + χ w  • ((π k V z ^ n) v) := by
+          simp
+        rw [this, lie_add, lie_smul, add_sub_assoc, sub_self, add_zero]
+        exact map_U_le _ _ _ ⟨(T A χ w) ((π k V z ^ n) v),
+          ⟨hn w ⟨(π k V z ^ n) v, ⟨n, Nat.lt_succ_self n, rfl⟩, rfl⟩, rfl⟩⟩
+    · exact U_mono v _ (Nat.le_succ n) (hn w ⟨v', ⟨m, hm', hv'⟩, hx⟩)
+
+theorem iSupU_A_stable (hv : v ∈ altWeightSpace A χ) :
+  ∀ x ∈ (iSupU v (π k V z)), (π k V w) x ∈ (iSupU v (π k V z)):= by
+  intro x hx
+  obtain ⟨n, hn⟩ := iSupU_eq_U v (π k V z)
+  rw [hn] at hx
+  have hx' : (π k V w) x = (T A χ w) x + χ w • x := by simp
+  rw [hx']
+  apply Submodule.add_mem
+  · suffices h : Submodule.map (T A χ w) (U v (π k V z) (n + 1)) ≤ U v (π k V z) n from
+      Submodule.mem_iSup_of_mem n (h ⟨x, U_mono v _ (Nat.le_succ n) hx, rfl⟩)
+    exact T_apply_succ A χ z w hv n
+  · rw [hn]
+    exact Submodule.smul_mem _ _ hx
 
 lemma T_map_iSupU (hv : v ∈ altWeightSpace A χ) :
   ∀ x ∈ iSupU v (π k V z), (T A χ w) x ∈ iSupU v (π k V z) := by
