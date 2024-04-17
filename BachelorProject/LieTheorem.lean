@@ -134,32 +134,22 @@ lemma T_apply_succ (hv : v ∈ altWeightSpace A χ) (n : ℕ) :
           ⟨hn w ⟨(π k V z ^ n) v, ⟨n, Nat.lt_succ_self n, rfl⟩, rfl⟩, rfl⟩⟩
     · exact U_mono v _ (Nat.le_succ n) (hn w ⟨v', ⟨m, hm', hv'⟩, hx⟩)
 
-theorem iSupU_A_stable (hv : v ∈ altWeightSpace A χ) :
-  ∀ x ∈ (iSupU v (π k V z)), (π k V w) x ∈ (iSupU v (π k V z)):= by
-  intro x hx
-  obtain ⟨n, hn⟩ := iSupU_eq_U v (π k V z)
-  rw [hn] at hx
-  have hx' : (π k V w) x = (T A χ w) x + χ w • x := by simp
-  rw [hx']
-  apply Submodule.add_mem
-  · suffices h : Submodule.map (T A χ w) (U v (π k V z) (n + 1)) ≤ U v (π k V z) n from
-      Submodule.mem_iSup_of_mem n (h ⟨x, U_mono v _ (Nat.le_succ n) hx, rfl⟩)
-    exact T_apply_succ A χ z w hv n
-  · rw [hn]
-    exact Submodule.smul_mem _ _ hx
-
 lemma T_map_iSupU (hv : v ∈ altWeightSpace A χ) :
   ∀ x ∈ iSupU v (π k V z), (T A χ w) x ∈ iSupU v (π k V z) := by
   intro x hx
-  rcases iSupU_eq_U v (π k V z) with ⟨N, hN⟩
-  apply le_iSup (U _ _) N
-  apply T_apply_succ A χ z w hv (N)
-  use x
-  constructor
-  · apply U_mono v (π k V z) (N.le_succ)
-    rw [hN] at hx
-    assumption
-  · trivial
+  obtain ⟨n, hn⟩ := iSupU_eq_U v (π k V z)
+  rw [hn] at hx
+  suffices h : Submodule.map (T A χ w) (U v (π k V z) (n + 1)) ≤ U v (π k V z) n from
+      Submodule.mem_iSup_of_mem n (h ⟨x, U_mono v _ (Nat.le_succ n) hx, rfl⟩)
+  exact T_apply_succ A χ z w hv n
+
+theorem iSupU_A_stable (hv : v ∈ altWeightSpace A χ) :
+  ∀ x ∈ (iSupU v (π k V z)), (π k V w) x ∈ (iSupU v (π k V z)):= by
+  intro x hx
+  have hx' : (π k V w) x = (T A χ w) x + χ w • x := by simp
+  rw [hx']
+  exact Submodule.add_mem _ (T_map_iSupU A χ z w hv x hx)
+    (Submodule.smul_mem (iSupU v (π k V z)) _ hx)
 
 lemma T_map_U_nilpotent (hv : v ∈ altWeightSpace A χ) (N: ℕ) :
   ∀ x ∈ (U_map v (π k V z)) N, (T A χ w ^ N) x = 0 := by
