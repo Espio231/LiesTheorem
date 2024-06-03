@@ -1,6 +1,5 @@
 import Mathlib.Algebra.Lie.Solvable
 import Mathlib.Algebra.Lie.Weights.Linear
-import BachelorProject.scratch
 
 set_option autoImplicit false
 
@@ -45,13 +44,13 @@ lemma U_mono {a b : ℕ} (h : a ≤ b) : U v f a ≤ U v f b :=
   Submodule.span_mono (fun _ ⟨c, hc, hw⟩ ↦ ⟨c, lt_of_lt_of_le hc h, hw⟩)
 
 lemma map_U_le (n : ℕ) : Submodule.map f (U v f n) ≤ U v f (n + 1) := by
-
   rw [Submodule.map_span]
   apply Submodule.span_mono
   intro w ⟨z, ⟨m, hm, hz⟩, hw⟩
   use m + 1, Nat.add_lt_add_right hm 1
-  rw [← hw, pow_succ, hz]
-  rfl
+  rw [← hw, hz, ← LinearMap.mul_apply, ← pow_succ']
+
+
 
 def U_map : ℕ →o Submodule F V where
   toFun := U v f
@@ -112,7 +111,7 @@ lemma T_apply_succ (hv : v ∈ altWeightSpace A χ) (n : ℕ) :
     intro w x ⟨v', ⟨m, hm, hv'⟩, hx⟩
     rcases (eq_or_lt_of_le (Nat.le_of_lt_succ hm)) with (rfl | hm')
     · rw [← hx, hv', T, LinearMap.sub_apply]
-      rw [pow_succ, LinearMap.mul_apply]
+      rw [pow_succ', LinearMap.mul_apply]
       rw [LieModule.toEndomorphism_apply_apply, LieModule.toEndomorphism_apply_apply,
         LieIdeal.coe_bracket_of_module, LinearMap.smul_apply, LinearMap.one_apply,
         SetLike.mem_coe, leibniz_lie, add_sub_assoc]
@@ -157,14 +156,14 @@ lemma T_map_U_nilpotent (hv : v ∈ altWeightSpace A χ) (N: ℕ) :
   · simp only [U_map, Nat.zero_eq, OrderHom.coe_mk, U_zero_eq_bot, Submodule.mem_bot,
     pow_zero, LinearMap.one_apply, imp_self, forall_const]
   · intro x hx
-    rw [pow_succ', LinearMap.mul_apply]
+    rw [pow_succ, LinearMap.mul_apply]
     apply ih
     apply T_apply_succ A χ z w hv N
     use x, hx
 
 theorem T_res_nilpotent (hv : v ∈ altWeightSpace A χ) :
   IsNilpotent ((T A χ w).restrict (T_map_iSupU A χ z w hv)) := by
-  rw [IsNilpotent_iff_of_FG]
+  rw [Module.Finite.Module.End.isNilpotent_iff_of_finite]
   rintro ⟨x, hx⟩
   rw [Submodule.mem_iSup_of_chain] at hx
   rcases hx with ⟨N, hN⟩
@@ -231,10 +230,6 @@ theorem altWeightSpace_lie_stable (hv : v ∈ altWeightSpace A χ):  ⁅z, v⁆ 
     simp only [zero_smul, lie_smul, zero_add]
 end
 
-lemma isSolvable_of_le (R L : Type*) [CommRing R] [LieRing L] [LieAlgebra R L] {K K' : LieSubalgebra R L}
-    [IsSolvable R K'] (h : K ≤ K') : IsSolvable R K :=
-  Function.Injective.lieAlgebra_isSolvable (LieSubalgebra.inclusion_injective h)
-
 instance : IsCoatomic (Submodule k V) :=
   isCoatomic_of_isAtomic_of_complementedLattice_of_isModular
 
@@ -250,7 +245,6 @@ lemma exists_coatom (n : ℕ) (hV : finrank k V = n + 1) (X : Submodule k V) (hX
   apply add_right_cancel at this
   constructor <;> assumption
 
-
 lemma derivedSeries_eq_top (n : ℕ) (h : derivedSeries k L 1 = ⊤) : derivedSeries k L n = ⊤ := by
   rw [derivedSeries_def]
   induction' n with n ih
@@ -258,6 +252,7 @@ lemma derivedSeries_eq_top (n : ℕ) (h : derivedSeries k L 1 = ⊤) : derivedSe
   · rw [derivedSeriesOfIdeal_succ]
     rw [ih]
     assumption
+
 
 variable (k) (L) in
 theorem derivedSeries_ne_top_of_solvable [IsSolvable k L] [Nontrivial L] : derivedSeries k L 1 ≠ ⊤ := by
@@ -282,6 +277,13 @@ theorem exists_lieIdeal_of_derivedSeries_le (A : Submodule k L) (h : derivedSeri
         trivial
     }, rfl⟩
 
+theorem derivedSubalgebra_ne_top [LieAlgebra.IsSolvable k L] [Nontrivial L] :
+  (lieIdealSubalgebra k L (LieAlgebra.derivedSeries k L 1)).toSubmodule ≠ ⊤ := by
+    have h := derivedSeries_ne_top_of_solvable k L
+    simp_all only [derivedSeriesOfIdeal_succ, derivedSeriesOfIdeal_zero, ne_eq,
+      LieIdeal.coe_to_lieSubalgebra_to_submodule, LieSubmodule.coeSubmodule_eq_top_iff,
+      not_false_eq_true]
+
 section
 -- we introduce linear projections from a direct sum to its summands
 variable {R V : Type*} [Ring R] [AddCommGroup V] [Module R V] {A B : Submodule R V}
@@ -303,11 +305,11 @@ lemma pr1_pr2_add' (hcodis : Codisjoint A B) (v : V) : pr1_aux hcodis v + pr2_au
 
 lemma id_sub_pr2' (hcodis : Codisjoint A B) (v : V) : v - (pr2_aux hcodis v) = (pr1_aux hcodis v) := by
   nth_rw 1 [← pr1_pr2_add' hcodis v]
-  simp only [add_sub_cancel]
+  simp only [add_sub_cancel_right]
 
 lemma id_sub_pr1' (hcodis : Codisjoint A B) (v : V) : v - (pr1_aux hcodis v) = (pr2_aux hcodis v) := by
   nth_rw 1 [← pr1_pr2_add' hcodis v]
-  simp only [add_sub_cancel']
+  simp only [add_sub_cancel_left]
 
 noncomputable def pr1 (hcodis : Codisjoint A B) (hdis : Disjoint A B) : V →ₗ[R] A where
   toFun := fun v ↦ ⟨pr1_aux hcodis v, pr1_aux_mem hcodis v⟩
@@ -327,8 +329,7 @@ noncomputable def pr1 (hcodis : Codisjoint A B) (hdis : Disjoint A B) : V →ₗ
         apply Submodule.sub_mem
         apply Submodule.add_mem <;> apply pr2_aux_mem
         apply pr2_aux_mem
-    rw [disjoint_iff.mp hdis] at this
-    rw [Submodule.mem_bot] at this
+    rw [disjoint_iff.mp hdis, Submodule.mem_bot] at this
     rw [sub_eq_zero, sub_eq_iff_eq_add, add_comm (pr1_aux hcodis y)] at this
     assumption
   map_smul' := by
@@ -349,12 +350,10 @@ noncomputable def pr1 (hcodis : Codisjoint A B) (hdis : Disjoint A B) : V →ₗ
         apply Submodule.smul_mem
         apply pr2_aux_mem
         apply pr2_aux_mem
-    rw [disjoint_iff.mp hdis] at this
-    rw [Submodule.mem_bot] at this
-    rwa [sub_eq_zero] at this
+    rwa [disjoint_iff.mp hdis, Submodule.mem_bot, sub_eq_zero] at this
 
-theorem pr1_val (hcodis : Codisjoint A B) (hdis : Disjoint A B) (v : V) : (pr1 hcodis hdis v).val = pr1_aux hcodis v := by
-  exact rfl
+
+theorem pr1_val (hcodis : Codisjoint A B) (hdis : Disjoint A B) (v : V) : (pr1 hcodis hdis v).val = pr1_aux hcodis v := rfl
 
 noncomputable def pr2 (hcodis : Codisjoint A B) (hdis : Disjoint A B) : V →ₗ[R] B where
   toFun := fun v ↦ ⟨pr2_aux hcodis v, pr2_aux_mem hcodis v⟩
@@ -376,13 +375,6 @@ noncomputable def pr2 (hcodis : Codisjoint A B) (hdis : Disjoint A B) : V →ₗ
 
 end
 
-theorem derivedSubalgebra_ne_top [LieAlgebra.IsSolvable k L] [Nontrivial L] : (lieIdealSubalgebra k L (LieAlgebra.derivedSeries k L 1)).toSubmodule ≠ ⊤ := by
-    have h := derivedSeries_ne_top_of_solvable k L
-    simp_all only [derivedSeriesOfIdeal_succ, derivedSeriesOfIdeal_zero, ne_eq,
-      LieIdeal.coe_to_lieSubalgebra_to_submodule, LieSubmodule.coeSubmodule_eq_top_iff,
-      not_false_eq_true]
-
-
 noncomputable def kequivB (z : L) (hz : z ≠ 0): k ≃ₗ[k] Submodule.span k {z} where
   toFun := fun d ↦ ⟨d • z, Submodule.smul_mem _ d (Submodule.mem_span_singleton_self z)⟩
   map_add' := by
@@ -396,7 +388,7 @@ noncomputable def kequivB (z : L) (hz : z ≠ 0): k ≃ₗ[k] Submodule.span k {
   invFun := fun ⟨z', hz'⟩ ↦ (Submodule.mem_span_singleton.mp hz').choose
   left_inv := by
     intro c
-    simp only
+    simp
     have h : (Submodule.mem_span_singleton.mp (Submodule.smul_mem _ c (Submodule.mem_span_singleton_self z))).choose • z = c • z :=
       (Submodule.mem_span_singleton.mp (Submodule.smul_mem _ c (Submodule.mem_span_singleton_self z))).choose_spec
     rw [← sub_eq_zero, ← sub_smul] at *
@@ -413,7 +405,7 @@ theorem extend_weight (A : LieIdeal k L) (z : L) (hz : z ∉ A) (hcodis : A.toSu
       (π k V z).restrict (p := altWeightSpace A χ') (q := altWeightSpace A χ')
       (fun _ hx ↦ altWeightSpace_lie_stable A χ' z hx)
   have altWeightSpace_nontrivial : Nontrivial (altWeightSpace (V := V) A χ') :=
-    ⟨⟨v, hvA'⟩, ⟨0, Subtype.ne_of_val_ne hv⟩⟩
+    ⟨⟨v, hvA'⟩, ⟨0, Subtype.coe_ne_coe.mp hv⟩⟩
   obtain ⟨c, hc⟩ := Module.End.exists_eigenvalue  πz_res
   obtain ⟨⟨v', hv'⟩, hv''⟩ := Module.End.HasEigenvalue.exists_hasEigenvector hc
   rw [← codisjoint_iff] at hcodis
@@ -424,7 +416,7 @@ theorem extend_weight (A : LieIdeal k L) (z : L) (hz : z ∉ A) (hcodis : A.toSu
     apply hz
     apply Submodule.zero_mem
 
-  use (χ'.comp (pr1 (hcodis) hdis)) + c • ((kequivB z hz').symm.comp (pr2 hcodis hdis)), v'
+  use (χ'.comp (pr1 hcodis hdis)) + c • ((kequivB z hz').symm.comp (pr2 hcodis hdis)), v'
   constructor
   · have := hv''.right
     rw [ne_eq]
@@ -464,7 +456,7 @@ theorem LieModule.exists_forall_lie_eq_smul_finrank [IsSolvable k L] [FiniteDime
     {n : ℕ} (hdim : finrank k L = n) :
   ∃ χ : Module.Dual k L, ∃ v : V, v ≠ 0 ∧ ∀ x : L, ⁅x, v⁆ = χ x • v := by
   revert L
-  induction' n with n ih
+  induction n
   · intro L _ _ _ _ _ _ hdim
     use 0
     rcases (exists_ne (0 : V)) with ⟨v, hv⟩
@@ -472,7 +464,8 @@ theorem LieModule.exists_forall_lie_eq_smul_finrank [IsSolvable k L] [FiniteDime
     intro x
     rw [LinearMap.zero_apply, zero_smul]
     rw [finrank_zero_iff_forall_zero.mp hdim x, zero_lie]
-  · intro L _ _ _ _ _ _ hdim
+  · next n ih =>
+    intro L _ _ _ _ _ _ hdim
     have : Nontrivial L := nontrivial_of_finrank_eq_succ hdim
 
     obtain ⟨A, hAL', hdimA, hcoatomA⟩ := exists_coatom n hdim (derivedSeries k L 1) derivedSubalgebra_ne_top
